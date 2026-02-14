@@ -16,6 +16,7 @@ Usage:
 import argparse
 import collections
 import datetime
+import hashlib
 import json
 import os
 import sys
@@ -42,7 +43,7 @@ REPLAY_BURST_PAUSE = 2.0      # Pause between detection bursts
 # ---------------------------------------------------------------------------
 # Global state
 # ---------------------------------------------------------------------------
-drones = {}          # keyed by MAC address
+drones = {}          # keyed by basic_id (Remote ID) or MAC fallback
 drones_lock = threading.Lock()
 activity_lines = collections.deque(maxlen=200)  # recent raw serial lines with seq
 activity_seq = 0        # monotonic sequence counter
@@ -90,15 +91,24 @@ def parse_drone_json(line):
     return None
 
 
+def get_drone_key(data):
+    """Get the unique key for a drone — basic_id (Remote ID) or MAC fallback."""
+    basic_id = data.get('basic_id', '').strip()
+    if basic_id:
+        return basic_id
+    return data.get('mac', 'unknown')
+
+
 def update_drone(data):
     """Update the in-memory drone dict with a new detection."""
-    mac = data['mac']
+    key = get_drone_key(data)
     now = time.time()
     with drones_lock:
-        if mac not in drones:
-            drones[mac] = {}
-        d = drones[mac]
-        d['mac'] = mac
+        if key not in drones:
+            drones[key] = {}
+        d = drones[key]
+        d['key'] = key
+        d['mac'] = data.get('mac', '')
         d['rssi'] = data.get('rssi', 0)
         d['drone_lat'] = data.get('drone_lat', 0.0)
         d['drone_long'] = data.get('drone_long', 0.0)
@@ -114,10 +124,10 @@ def age_drones():
     """Remove drones not seen for DRONE_TIMEOUT_S seconds."""
     now = time.time()
     with drones_lock:
-        stale = [mac for mac, d in drones.items()
+        stale = [key for key, d in drones.items()
                  if now - d.get('last_seen', 0) > DRONE_TIMEOUT_S]
-        for mac in stale:
-            del drones[mac]
+        for key in stale:
+            del drones[key]
 
 
 def mac_to_hex(mac_str):
@@ -128,6 +138,15 @@ def mac_to_hex(mac_str):
     return mac_str.replace(':', '').upper()[-6:]
 
 
+def drone_key_to_hex(key):
+    """Convert a drone key (basic_id or MAC) to a 6-char hex display ID."""
+    # If it looks like a MAC address, use last 3 bytes
+    if ':' in key and len(key.split(':')) >= 6:
+        return mac_to_hex(key)
+    # Otherwise, hash the key to a stable 6-char hex ID
+    return hashlib.md5(key.encode()).hexdigest()[:6].upper()
+
+
 def build_aircraft_json():
     """Build SkyAware-compatible aircraft.json from drone state."""
     now = time.time()
@@ -135,9 +154,12 @@ def build_aircraft_json():
 
     aircraft = []
     total_messages = 0
+    # Track pilot positions to avoid duplicate pilot markers for swarms
+    seen_pilots = set()
+
     with drones_lock:
-        for mac, d in drones.items():
-            hex_id = mac_to_hex(mac)
+        for key, d in drones.items():
+            hex_id = drone_key_to_hex(key)
             seen = now - d.get('last_seen', now)
             total_messages += d.get('detections', 0)
 
@@ -157,7 +179,7 @@ def build_aircraft_json():
                 'seen': round(seen, 1),
                 'seen_pos': round(seen, 1),
                 'messages': d.get('detections', 1),
-                'mac': mac,
+                'mac': d.get('mac', ''),
                 'altitude_m': drone_alt_m,
                 'pilot_lat': d.get('pilot_lat', 0.0),
                 'pilot_long': d.get('pilot_long', 0.0),
@@ -165,24 +187,28 @@ def build_aircraft_json():
             aircraft.append(drone_entry)
 
             # Pilot entry (only if pilot position is non-zero)
+            # Deduplicate: swarm drones often share the same pilot position
             pilot_lat = d.get('pilot_lat', 0.0)
             pilot_lon = d.get('pilot_long', 0.0)
             if pilot_lat != 0.0 or pilot_lon != 0.0:
-                pilot_entry = {
-                    'hex': hex_id + '_P',
-                    'type': 'pilot',
-                    'flight': 'PILOT',
-                    'alt_baro': 0,
-                    'alt_geom': 0,
-                    'lat': pilot_lat,
-                    'lon': pilot_lon,
-                    'rssi': d.get('rssi', 0),
-                    'seen': round(seen, 1),
-                    'seen_pos': round(seen, 1),
-                    'messages': d.get('detections', 1),
-                    'drone_hex': hex_id,
-                }
-                aircraft.append(pilot_entry)
+                pilot_key = (round(pilot_lat, 6), round(pilot_lon, 6))
+                if pilot_key not in seen_pilots:
+                    seen_pilots.add(pilot_key)
+                    pilot_entry = {
+                        'hex': hex_id + '_P',
+                        'type': 'pilot',
+                        'flight': 'PILOT',
+                        'alt_baro': 0,
+                        'alt_geom': 0,
+                        'lat': pilot_lat,
+                        'lon': pilot_lon,
+                        'rssi': d.get('rssi', 0),
+                        'seen': round(seen, 1),
+                        'seen_pos': round(seen, 1),
+                        'messages': d.get('detections', 1),
+                        'drone_hex': hex_id,
+                    }
+                    aircraft.append(pilot_entry)
 
     return {
         'now': now,
@@ -258,8 +284,8 @@ class SerialReader(threading.Thread):
                     data = parse_drone_json(line)
                     if data:
                         update_drone(data)
-                        hex_id = mac_to_hex(data['mac'])
-                        print(f"[DRONE] {hex_id} | "
+                        bid = data.get('basic_id', '') or mac_to_hex(data['mac'])
+                        print(f"[DRONE] {bid} | "
                               f"lat={data.get('drone_lat', 0):.6f} "
                               f"lon={data.get('drone_long', 0):.6f} "
                               f"alt={data.get('drone_altitude', 0)}m "
@@ -305,8 +331,8 @@ class ReplayReader(threading.Thread):
             if data:
                 update_drone(data)
                 detection_count += 1
-                hex_id = mac_to_hex(data['mac'])
-                print(f"[REPLAY] #{detection_count} {hex_id} | "
+                bid = data.get('basic_id', '') or mac_to_hex(data['mac'])
+                print(f"[REPLAY] #{detection_count} {bid} | "
                       f"lat={data.get('drone_lat', 0):.6f} "
                       f"lon={data.get('drone_long', 0):.6f} "
                       f"alt={data.get('drone_altitude', 0)}m")
