@@ -1422,9 +1422,15 @@ label.sourceCheckboxChecked div.sourceCheckbox {
 
 .infoblock_heading {
     padding: 5px 0;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+    text-align: center;
+    position: relative;
+}
+
+.infoblock_heading .restart_button {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
 }
 
 .restart_button {
