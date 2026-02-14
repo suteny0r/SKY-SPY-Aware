@@ -38,7 +38,7 @@ The Python server reads Sky Spy's JSON detection output from the ESP32 serial po
 ## Installation
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/SKY-SPY-Aware.git
+git clone https://github.com/suteny0r/SKY-SPY-Aware.git
 cd SKY-SPY-Aware
 pip install -r requirements.txt
 ```
