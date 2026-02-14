@@ -1,0 +1,279 @@
+<!DOCTYPE HTML>
+<html>
+	<head>
+		<meta charset="utf-8"/>
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<link rel="stylesheet" type="text/css" href="style.css?v=2.0" />
+		<link rel="stylesheet" href="jquery/jquery-ui-1.11.4-smoothness.css" />
+		<script src="jquery/jquery-3.0.0.min.js"></script>
+		<script src="jquery/jquery-ui-1.11.4.min.js"></script>
+
+		<link rel="stylesheet" href="ol/v6.3.1/ol.css" type="text/css" />
+		<script src="ol/v6.3.1/ol.js" type="text/javascript"></script>
+
+		<link rel="stylesheet" href="ol/ol-layerswitcher.css" type="text/css"/>
+		<script src="ol/ol-layerswitcher.js" type="text/javascript"></script>
+
+		<script type="text/javascript" src="config.js?v=2.0"></script>
+		<script type="text/javascript" src="markers.js?v=2.0"></script>
+		<script type="text/javascript" src="dbloader.js?v=2.0"></script>
+		<script type="text/javascript" src="registrations.js?v=2.0"></script>
+		<script type="text/javascript" src="planeObject.js?v=2.0"></script>
+		<script type="text/javascript" src="formatter.js?v=2.0"></script>
+		<script type="text/javascript" src="flags.js?v=2.0"></script>
+		<script type="text/javascript" src="layers.js?v=2.0"></script>
+		<script type="text/javascript" src="script.js?v=2.0"></script>
+		<title>SKY-SPY-Aware</title>
+	</head>
+
+	<body onload="initialize()">
+		<div id="loader" class="hidden">
+			<div id="loader_text">Loading SKY-SPY-Aware...</div>
+		</div>
+
+		<div id="header" class="infoHeading">
+			<div class="logoContainer">
+				<span class="skyspy-title">SKY-SPY-Aware</span>
+				<span class="skyspy-subtitle">Live Drone Detection</span>
+			</div>
+
+			<div class="menuContainer">
+				<div class="dateTime" id="clock_div"></div>
+
+				<div class="buttonContainer">
+					<div class="button buttonHeader" onclick="resetMap();"><span class="buttonText">Reset Map</span></div>
+					<div class="button buttonHeader" onclick="selectAllPlanes();"><span class="buttonText">Show All Tracks</span></div>
+					<div class="button buttonHeader" onclick="deselectAllPlanes();"><span class="buttonText">Hide All Tracks</span></div>
+				</div>
+
+				<div class="settingsContainer">
+					<span id="settingsCog" style="cursor:pointer;font-size:20px;">&#9881;</span>
+					<span class="buttonText">Settings</span>
+				</div>
+
+				<button type="button" class="navToggle" onclick="$('body').toggleClass('navOpen')"><span></span></button>
+			</div>
+		</div>
+
+		<div id="layout_container">
+			<div id="highlighted_infoblock">
+				<div class="highlightedTitle">
+					<span class="identLarge"><span id="highlighted_callsign">n/a</span></span>
+					<span class="identSmall"><span id="highlighted_icao">n/a</span></span>
+				</div>
+				<div class="highlightedInfo">
+					<div class="infoRow">
+						<div class="infoHeading infoRowTitle">Remote ID: </div>
+						<div class="infoData infoRowContent"><span id="highlighted_registration">n/a</span></div>
+					</div>
+					<div class="infoRow">
+						<div class="infoHeading infoRowTitle">Type: </div>
+						<div class="infoData infoRowContent"><span id="higlighted_icaotype">n/a</span></div>
+					</div>
+					<div class="infoRow">
+						<div class="infoHeading infoRowTitle">Altitude: </div>
+						<div class="infoData infoRowContent"><span id="highlighted_altitude">n/a</span></div>
+					</div>
+					<div class="infoRow">
+						<div class="infoHeading infoRowTitle">RSSI: </div>
+						<div class="infoData infoRowContent"><span id="highlighted_speed">n/a</span></div>
+					</div>
+					<div class="infoRow">
+						<div class="infoHeading infoRowTitle">Source: </div>
+						<div class="infoData infoRowContent"><span id="highlighted_source">n/a</span></div>
+					</div>
+				</div>
+			</div>
+
+			<div id="settings_infoblock">
+				<div id="settings_close" class="settingsCloseBox"></div>
+				<div id="units_container">
+					<label for="units_selector"><span class="infoBlockTitleText">Units:</span></label>
+					<select name="units_selector" id="units_selector">
+						<option value="metric">Metric</option>
+						<option value="nautical">Aeronautical</option>
+						<option value="imperial">Imperial</option>
+					</select>
+				</div>
+				<div class="settingsColumn">
+					<div class="settingsOptionContainer">
+						<div class="infoBlockTitleText">Overlay Toggles</div>
+					</div>
+					<div class="settingsOptionContainer">
+						<div class="settingsCheckbox" id="actrail_checkbox"></div>
+						<div class="settingsText">Selected Drone Trail</div>
+					</div>
+					<div class="settingsOptionContainer">
+						<div class="settingsCheckbox" id="acpositions_checkbox"></div>
+						<div class="settingsText">Drone Positions</div>
+					</div>
+				</div>
+				<div class="settingsColumn">
+					<div class="settingsOptionContainer">
+						<div class="infoBlockTitleText">View Toggles</div>
+					</div>
+					<div class="settingsOptionContainer">
+						<div class="settingsCheckbox" id="selectall_checkbox"></div>
+						<div class="settingsText">All Drone Trails</div>
+					</div>
+					<div class="settingsOptionContainer">
+						<div class="settingsCheckbox" id="aircraft_label_checkbox"></div>
+						<div class="settingsText">Show Drone Labels</div>
+					</div>
+				</div>
+			</div>
+
+			<div id="map_container">
+				<div id="map_canvas"></div>
+				<div id="toggle_sidebar_control" class="ol-unselectable ol-control">
+					<button id="toggle_sidebar_button" class="hide_sidebar" title="Toggle Sidebar"></button>
+				</div>
+				<div id="expand_sidebar_control" class="ol-unselectable ol-control">
+					<button id="expand_sidebar_button" title="Expand Sidebar"></button>
+				</div>
+			</div>
+
+			<div id="sidebar_container">
+				<div id="splitter" class="ui-resizable-handle ui-resizable-w"></div>
+				<div id="sidebar_canvas">
+					<div id="sidebar-table">
+						<div id="dump1090_infoblock">
+							<div class="infoblock_heading">
+								<span id="skyaware_version" style="font-size:12px;color:#888;">SKY-SPY-Aware v1.0</span>
+							</div>
+
+							<div class="button buttonTable" id="show_map_button">
+								<span class="buttonText">Show Map</span>
+							</div>
+
+							<div>
+								<dl>
+									<div class="counters">
+										<div>
+											<dt>Total Drones</dt>
+											<dd id="dump1090_total_ac">0</dd>
+										</div>
+										<div>
+											<dt>With Positions</dt>
+											<dd id="dump1090_total_ac_positions">0</dd>
+										</div>
+										<div>
+											<dt>Detections</dt>
+											<dd id="dump1090_total_history">0</dd>
+										</div>
+									</div>
+								</dl>
+							</div>
+						</div>
+
+						<div id="planes_table_container">
+							<div id="planes_table">
+								<table id="tableinfo" style="width: 100%">
+									<thead class="aircraft_table_header">
+										<tr>
+											<td id="icao" onclick="sortByICAO();">MAC</td>
+											<td id="flight" onclick="sortByFlight();">Remote ID</td>
+											<td id="altitude" onclick="sortByAltitude();">Alt (m)</td>
+											<td id="rssi" onclick="sortByRssi();">RSSI</td>
+											<td id="seen" onclick="sortBySeen();">Age</td>
+											<td id="lat" onclick="sortByLatitude();">Lat</td>
+											<td id="lon" onclick="sortByLongitude();">Lon</td>
+											<td id="data_source">Type</td>
+										</tr>
+									</thead>
+									<tbody>
+										<tr id="plane_row_template" class="plane_table_row hidden">
+											<td class="icaoCodeColumn">MAC</td>
+											<td>REMOTE_ID</td>
+											<td style="text-align: right">ALT</td>
+											<td style="text-align: right">RSSI</td>
+											<td style="text-align: right">SEEN</td>
+											<td style="text-align: right">LAT</td>
+											<td style="text-align: right">LON</td>
+											<td style="text-align: right">TYPE</td>
+										</tr>
+									</tbody>
+								</table>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<div id="selected_infoblock" class="hidden">
+					<div id="splitter-infoblock" class="ui-resizable-handle ui-resizable-n"></div>
+					<div id="close-button">Close</div>
+					<div class="infoblock-container">
+						<div class="highlightedTitle">
+							<span class="identLarge"><span id="selected_callsign">n/a</span></span>
+							<span class="identSmall"><span id="selected_icao">n/a</span></span>
+						</div>
+
+						<div class="sectionTitle">
+							<div class="section-title-content">Drone Info</div>
+						</div>
+						<div class="infoBlockSection">
+							<div class="infoRowLine">
+								<div class="infoHeading infoRowFluid fourColumnSection1">Remote ID:</div>
+								<div class="infoData infoRowFluid fourColumnSection2"><span id="selected_registration">n/a</span></div>
+							</div>
+							<div class="infoRowLine">
+								<div class="infoHeading infoRowFluid fourColumnSection1">MAC:</div>
+								<div class="infoData infoRowFluid fourColumnSection2"><span id="selected_mac">n/a</span></div>
+							</div>
+							<div class="infoRowLine">
+								<div class="infoHeading infoRowFluid fourColumnSection1">Type:</div>
+								<div class="infoData infoRowFluid fourColumnSection2"><span id="selected_source">n/a</span></div>
+							</div>
+							<div class="infoRowLine">
+								<div class="infoHeading infoRowFluid fourColumnSection1">RSSI:</div>
+								<div class="infoData infoRowFluid fourColumnSection2"><span id="selected_rssi">n/a</span></div>
+							</div>
+							<div class="infoRowLine">
+								<div class="infoHeading infoRowFluid fourColumnSection1">Messages:</div>
+								<div class="infoData infoRowFluid fourColumnSection2"><span id="selected_message_count">n/a</span></div>
+							</div>
+							<div class="infoRowLine">
+								<div class="infoHeading infoRowFluid fourColumnSection1">Last Seen:</div>
+								<div class="infoData infoRowFluid fourColumnSection2"><span id="selected_seen">n/a</span></div>
+							</div>
+						</div>
+
+						<div class="sectionTitle">
+							<div class="section-title-content">Position</div>
+						</div>
+						<div class="infoBlockSection">
+							<div class="infoRowLine">
+								<div class="infoHeading infoRowFluid fourColumnSection1">Drone Position:</div>
+								<div class="infoData infoRowFluid fourColumnSection2"><span id="selected_position">n/a</span></div>
+							</div>
+							<div class="infoRowLine">
+								<div class="infoHeading infoRowFluid fourColumnSection1">Altitude:</div>
+								<div class="infoData infoRowFluid fourColumnSection2"><span id="selected_altitude">n/a</span></div>
+							</div>
+						</div>
+
+						<div class="sectionTitle">
+							<div class="section-title-content">Pilot</div>
+						</div>
+						<div class="infoBlockSection">
+							<div class="infoRowLine">
+								<div class="infoHeading infoRowFluid fourColumnSection1">Pilot Position:</div>
+								<div class="infoData infoRowFluid fourColumnSection2"><span id="selected_pilot_position">n/a</span></div>
+							</div>
+							<div class="infoRowLine">
+								<div class="infoHeading infoRowFluid fourColumnSection1">Pilot Distance:</div>
+								<div class="infoData infoRowFluid fourColumnSection2"><span id="selected_pilot_distance">n/a</span></div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div id="update_error" class="hidden">
+			<b>Problem fetching data from SKY-SPY-Aware server.</b><br>
+			<span id="update_error_detail"></span><br>
+			The displayed map data may be out of date.
+		</div>
+	</body>
+</html>
