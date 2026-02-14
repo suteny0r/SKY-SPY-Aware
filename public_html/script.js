@@ -330,10 +330,50 @@ function initialize_map() {
     });
 }
 
+var lastActivityCount = 0;
+
 function start_updating() {
     fetchData();
+    fetchActivity();
     window.setInterval(fetchData, RefreshInterval);
+    window.setInterval(fetchActivity, RefreshInterval);
     window.setInterval(refreshClock, 500);
+}
+
+function fetchActivity() {
+    $.ajax({
+        url: 'data/activity.json',
+        timeout: 3000,
+        cache: false,
+        dataType: 'json'
+    }).done(function(data) {
+        if (!data.lines || data.lines.length === 0) return;
+
+        var container = document.getElementById('activity_lines');
+        if (!container) return;
+
+        // Only update if new lines arrived
+        if (data.lines.length === lastActivityCount) return;
+        lastActivityCount = data.lines.length;
+
+        // Show last 15 lines
+        var recent = data.lines.slice(-15);
+        var html = '';
+        for (var i = 0; i < recent.length; i++) {
+            // Truncate long JSON lines for display
+            var text = recent[i];
+            if (text.length > 120) {
+                text = text.substring(0, 117) + '...';
+            }
+            // Escape HTML
+            text = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            html += '<div class="activity_line">' + text + '</div>';
+        }
+        container.innerHTML = html;
+
+        // Auto-scroll to bottom
+        container.scrollTop = container.scrollHeight;
+    });
 }
 
 function refreshClock() {

@@ -14,6 +14,7 @@ Usage:
 """
 
 import argparse
+import collections
 import datetime
 import json
 import os
@@ -43,6 +44,8 @@ REPLAY_BURST_PAUSE = 2.0      # Pause between detection bursts
 # ---------------------------------------------------------------------------
 drones = {}          # keyed by MAC address
 drones_lock = threading.Lock()
+activity_lines = collections.deque(maxlen=50)  # recent raw serial lines
+activity_lock = threading.Lock()
 start_time = time.time()
 server_start = time.time()
 
@@ -225,6 +228,11 @@ class SerialReader(threading.Thread):
                     line = ser.readline().decode('utf-8', errors='replace')
                     if not line:
                         continue
+                    # Store in activity buffer
+                    stripped = line.strip()
+                    if stripped:
+                        with activity_lock:
+                            activity_lines.append(stripped)
                     # Write every raw line to log (replayable as-is)
                     if log_file:
                         log_file.write(line)
@@ -269,6 +277,10 @@ class ReplayReader(threading.Thread):
         lines_since_detection = 0
 
         for line in lines:
+            stripped = line.strip()
+            if stripped:
+                with activity_lock:
+                    activity_lines.append(stripped)
             data = parse_drone_json(line)
             if data:
                 update_drone(data)
@@ -324,6 +336,10 @@ class SkySpyHandler(SimpleHTTPRequestHandler):
             })
         elif path == '/data/aircraft.json':
             self.send_json_response(build_aircraft_json())
+        elif path == '/data/activity.json':
+            with activity_lock:
+                lines = list(activity_lines)
+            self.send_json_response({'lines': lines})
         else:
             # Serve static files
             super().do_GET()

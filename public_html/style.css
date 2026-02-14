@@ -1430,3 +1430,43 @@ label.sourceCheckboxChecked div.sourceCheckbox {
     font-size: 16px;
     color: #00CED1;
 }
+
+/* Activity pane */
+#activity_pane {
+    border-top: 1px solid #ddd;
+    margin-top: 6px;
+    padding-top: 2px;
+}
+
+.activity_header {
+    font-size: 10px;
+    color: #666;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    font-weight: bold;
+}
+
+#activity_lines {
+    max-height: 100px;
+    overflow-y: auto;
+    font-family: "Consolas", "Monaco", "Courier New", monospace;
+    font-size: 10px;
+    line-height: 14px;
+    color: #555;
+    scroll-behavior: smooth;
+}
+
+.activity_line {
+    padding: 1px 8px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.activity_line:nth-child(odd) {
+    background-color: rgba(0, 0, 0, 0.04);
+}
+
+.activity_line:nth-child(even) {
+    background-color: transparent;
+}
