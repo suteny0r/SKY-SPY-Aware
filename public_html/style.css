@@ -1467,9 +1467,9 @@ label.sourceCheckboxChecked div.sourceCheckbox {
 }
 
 .activity_line:nth-child(odd) {
-    background-color: #0d0d0d;
+    background-color: #0a0a0a;
 }
 
 .activity_line:nth-child(even) {
-    background-color: #151515;
+    background-color: #1a1a1a;
 }
