@@ -330,7 +330,9 @@ function initialize_map() {
     });
 }
 
-var lastActivityCount = 0;
+var activitySeq = 0;
+var ActivityMaxLines = 80;
+var ActivityFetchPending = false;
 
 function start_updating() {
     fetchData();
@@ -341,10 +343,12 @@ function start_updating() {
 }
 
 function fetchActivity() {
+    if (ActivityFetchPending) return;
+    ActivityFetchPending = true;
+
     $.ajax({
-        url: 'data/activity.json',
+        url: 'data/activity.json?since=' + activitySeq,
         timeout: 3000,
-        cache: false,
         dataType: 'json'
     }).done(function(data) {
         if (!data.lines || data.lines.length === 0) return;
@@ -352,27 +356,29 @@ function fetchActivity() {
         var container = document.getElementById('activity_lines');
         if (!container) return;
 
-        // Only update if new lines arrived
-        if (data.lines.length === lastActivityCount) return;
-        lastActivityCount = data.lines.length;
+        var wasScrolledToBottom = (container.scrollHeight - container.scrollTop - container.clientHeight) < 20;
 
-        // Show last 15 lines
-        var recent = data.lines.slice(-15);
-        var html = '';
-        for (var i = 0; i < recent.length; i++) {
-            // Truncate long JSON lines for display
-            var text = recent[i];
-            if (text.length > 120) {
-                text = text.substring(0, 117) + '...';
-            }
-            // Escape HTML
-            text = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-            html += '<div class="activity_line">' + text + '</div>';
+        for (var i = 0; i < data.lines.length; i++) {
+            var entry = data.lines[i];
+            activitySeq = entry.seq;
+
+            var div = document.createElement('div');
+            div.className = 'activity_line';
+            div.textContent = entry.text;
+            container.appendChild(div);
         }
-        container.innerHTML = html;
 
-        // Auto-scroll to bottom
-        container.scrollTop = container.scrollHeight;
+        // Trim old lines from top if buffer too large
+        while (container.childNodes.length > ActivityMaxLines) {
+            container.removeChild(container.firstChild);
+        }
+
+        // Auto-scroll only if user was already at the bottom
+        if (wasScrolledToBottom) {
+            container.scrollTop = container.scrollHeight;
+        }
+    }).always(function() {
+        ActivityFetchPending = false;
     });
 }
 

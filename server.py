@@ -44,7 +44,8 @@ REPLAY_BURST_PAUSE = 2.0      # Pause between detection bursts
 # ---------------------------------------------------------------------------
 drones = {}          # keyed by MAC address
 drones_lock = threading.Lock()
-activity_lines = collections.deque(maxlen=50)  # recent raw serial lines
+activity_lines = collections.deque(maxlen=200)  # recent raw serial lines with seq
+activity_seq = 0        # monotonic sequence counter
 activity_lock = threading.Lock()
 start_time = time.time()
 server_start = time.time()
@@ -231,8 +232,10 @@ class SerialReader(threading.Thread):
                     # Store in activity buffer
                     stripped = line.strip()
                     if stripped:
+                        global activity_seq
                         with activity_lock:
-                            activity_lines.append(stripped)
+                            activity_seq += 1
+                            activity_lines.append((activity_seq, stripped))
                     # Write every raw line to log (replayable as-is)
                     if log_file:
                         log_file.write(line)
@@ -279,8 +282,10 @@ class ReplayReader(threading.Thread):
         for line in lines:
             stripped = line.strip()
             if stripped:
+                global activity_seq
                 with activity_lock:
-                    activity_lines.append(stripped)
+                    activity_seq += 1
+                    activity_lines.append((activity_seq, stripped))
             data = parse_drone_json(line)
             if data:
                 update_drone(data)
@@ -337,9 +342,24 @@ class SkySpyHandler(SimpleHTTPRequestHandler):
         elif path == '/data/aircraft.json':
             self.send_json_response(build_aircraft_json())
         elif path == '/data/activity.json':
+            # Support ?since=N to only return lines after seq N
+            since = 0
+            qs = self.path.split('?', 1)
+            if len(qs) > 1:
+                for param in qs[1].split('&'):
+                    if param.startswith('since='):
+                        try:
+                            since = int(param[6:])
+                        except ValueError:
+                            pass
             with activity_lock:
-                lines = list(activity_lines)
-            self.send_json_response({'lines': lines})
+                if since > 0:
+                    new_lines = [(s, t) for s, t in activity_lines if s > since]
+                else:
+                    new_lines = list(activity_lines)
+            self.send_json_response({
+                'lines': [{'seq': s, 'text': t} for s, t in new_lines]
+            })
         else:
             # Serve static files
             super().do_GET()

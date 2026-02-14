@@ -1431,42 +1431,45 @@ label.sourceCheckboxChecked div.sourceCheckbox {
     color: #00CED1;
 }
 
-/* Activity pane */
+/* Activity pane — embedded terminal */
 #activity_pane {
     border-top: 1px solid #ddd;
     margin-top: 6px;
-    padding-top: 2px;
 }
 
 .activity_header {
     font-size: 10px;
-    color: #666;
+    color: #888;
     text-transform: uppercase;
-    padding: 2px 8px;
+    padding: 3px 8px 2px;
     font-weight: bold;
+    background-color: #1a1a2e;
+    color: #00CED1;
 }
 
 #activity_lines {
-    max-height: 100px;
+    height: 120px;
     overflow-y: auto;
+    overflow-x: hidden;
     font-family: "Consolas", "Monaco", "Courier New", monospace;
     font-size: 10px;
-    line-height: 14px;
-    color: #555;
-    scroll-behavior: smooth;
+    line-height: 15px;
+    color: #ccc;
+    background-color: #0d0d0d;
+    padding: 2px 0;
 }
 
 .activity_line {
-    padding: 1px 8px;
+    padding: 0 6px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
 .activity_line:nth-child(odd) {
-    background-color: rgba(0, 0, 0, 0.04);
+    background-color: #0d0d0d;
 }
 
 .activity_line:nth-child(even) {
-    background-color: transparent;
+    background-color: #151515;
 }
