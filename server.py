@@ -47,6 +47,7 @@ drones_lock = threading.Lock()
 activity_lines = collections.deque(maxlen=200)  # recent raw serial lines with seq
 activity_seq = 0        # monotonic sequence counter
 activity_lock = threading.Lock()
+active_reader = None    # reference to SerialReader for restart
 start_time = time.time()
 server_start = time.time()
 
@@ -199,6 +200,20 @@ class SerialReader(threading.Thread):
         self.port = port
         self.baud = baud
         self.log_dir = log_dir
+        self.ser = None
+
+    def restart_device(self):
+        """Toggle DTR to reset the ESP32 via auto-reset circuit."""
+        if self.ser is None or not self.ser.is_open:
+            return False
+        print("[SERIAL] Restarting sensor (DTR toggle)...")
+        self.ser.setDTR(False)
+        time.sleep(0.1)
+        self.ser.setDTR(True)
+        # Clear stale drone data so the map starts fresh
+        with drones_lock:
+            drones.clear()
+        return True
 
     def _open_log(self):
         """Create a timestamped log file for this session."""
@@ -216,7 +231,7 @@ class SerialReader(threading.Thread):
             return
         print(f"[SERIAL] Opening {self.port} at {self.baud} baud...")
         try:
-            ser = serial.Serial(self.port, self.baud, timeout=1)
+            self.ser = serial.Serial(self.port, self.baud, timeout=1)
         except serial.SerialException as e:
             print(f"[ERROR] Cannot open {self.port}: {e}")
             return
@@ -226,7 +241,7 @@ class SerialReader(threading.Thread):
         try:
             while True:
                 try:
-                    line = ser.readline().decode('utf-8', errors='replace')
+                    line = self.ser.readline().decode('utf-8', errors='replace')
                     if not line:
                         continue
                     # Store in activity buffer
@@ -374,6 +389,21 @@ class SkySpyHandler(SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(content)
 
+    def do_POST(self):
+        path = self.path.split('?')[0]
+
+        if path == '/api/restart-sensor':
+            if active_reader and hasattr(active_reader, 'restart_device'):
+                ok = active_reader.restart_device()
+                if ok:
+                    self.send_json_response({'status': 'ok', 'message': 'Sensor restarting'})
+                else:
+                    self.send_json_response({'status': 'error', 'message': 'Serial port not available'})
+            else:
+                self.send_json_response({'status': 'error', 'message': 'No live serial connection (replay mode?)'})
+        else:
+            self.send_error(404)
+
     def log_message(self, format, *args):
         # Suppress routine GET logs, only log errors
         if '404' in str(args) or '500' in str(args):
@@ -437,7 +467,9 @@ def main():
         if not args.no_log:
             log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                    'logs')
+        global active_reader
         reader = SerialReader(port, args.baud, log_dir=log_dir)
+        active_reader = reader
         reader.start()
 
     # Start HTTP server

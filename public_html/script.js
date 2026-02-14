@@ -231,6 +231,32 @@ function initialize() {
         $('#settings_infoblock').hide();
     });
 
+    $('#restart_sensor').on('click', function() {
+        var btn = $(this);
+        if (btn.hasClass('restarting')) return;
+        if (!confirm('Restart the ESP32 sensor?')) return;
+        btn.addClass('restarting').text('Restarting...');
+        $.ajax({
+            url: 'api/restart-sensor',
+            type: 'POST',
+            timeout: 5000,
+            dataType: 'json'
+        }).done(function(data) {
+            if (data.status === 'ok') {
+                btn.text('Restarted');
+                setTimeout(function() {
+                    btn.removeClass('restarting').text('Restart Sensor');
+                }, 5000);
+            } else {
+                alert(data.message || 'Restart failed');
+                btn.removeClass('restarting').text('Restart Sensor');
+            }
+        }).fail(function() {
+            alert('Could not reach server');
+            btn.removeClass('restarting').text('Restart Sensor');
+        });
+    });
+
     $('#selectall_checkbox').on('click', function() {
         toggleAllPlanes(true);
     });
