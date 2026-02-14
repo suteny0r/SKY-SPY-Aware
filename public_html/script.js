@@ -346,25 +346,27 @@ function fetchActivity() {
     if (ActivityFetchPending) return;
     ActivityFetchPending = true;
 
+    var url = 'data/activity.json?since=' + activitySeq + '&_=' + Date.now();
+
     $.ajax({
-        url: 'data/activity.json?since=' + activitySeq,
+        url: url,
         timeout: 3000,
+        cache: false,
         dataType: 'json'
     }).done(function(data) {
-        if (!data.lines || data.lines.length === 0) return;
-
         var container = document.getElementById('activity_lines');
-        if (!container) return;
+        if (!container) { ActivityFetchPending = false; return; }
+        if (!data || !data.lines || data.lines.length === 0) { ActivityFetchPending = false; return; }
 
         var wasScrolledToBottom = (container.scrollHeight - container.scrollTop - container.clientHeight) < 20;
 
         for (var i = 0; i < data.lines.length; i++) {
             var entry = data.lines[i];
-            activitySeq = entry.seq;
+            if (entry.seq) activitySeq = entry.seq;
 
             var div = document.createElement('div');
             div.className = 'activity_line';
-            div.textContent = entry.text;
+            div.textContent = entry.text || entry;
             container.appendChild(div);
         }
 
@@ -377,7 +379,8 @@ function fetchActivity() {
         if (wasScrolledToBottom) {
             container.scrollTop = container.scrollHeight;
         }
-    }).always(function() {
+        ActivityFetchPending = false;
+    }).fail(function() {
         ActivityFetchPending = false;
     });
 }
