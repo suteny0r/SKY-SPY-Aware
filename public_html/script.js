@@ -236,6 +236,10 @@ function initialize() {
         if (btn.hasClass('restarting')) return;
         if (!confirm('Restart the ESP32 sensor?')) return;
         btn.addClass('restarting').text('Restarting...');
+        // Clear activity pane so boot messages are visible from a clean slate
+        var actContainer = document.getElementById('activity_lines');
+        if (actContainer) actContainer.innerHTML = '';
+        activitySeq = 0;
         $.ajax({
             url: 'api/restart-sensor',
             type: 'POST',

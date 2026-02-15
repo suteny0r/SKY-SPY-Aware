@@ -243,6 +243,17 @@ class SerialReader(threading.Thread):
             # Clear stale drone data so the map starts fresh
             with drones_lock:
                 drones.clear()
+            # Clear activity buffer so boot messages start from clean slate
+            global activity_seq
+            with activity_lock:
+                activity_lines.clear()
+                activity_seq = 0
+            # Rotate log file — close current, open new one
+            if self.log_dir:
+                if self.log_file:
+                    self.log_file.close()
+                    self.log_file = None
+                self.log_file = self._open_log()
             return True
         except Exception as e:
             print(f"[SERIAL] Restart failed: {e}")
