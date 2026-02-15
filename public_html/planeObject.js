@@ -228,7 +228,7 @@ PlaneObject.prototype.getMarkerColor = function() {
         lit += colorArr.selected.l;
     }
 
-    if (this.seen_pos > 15) {
+    if (this.seen_pos > 30) {
         sat += colorArr.stale.s;
         lit += colorArr.stale.l;
     }

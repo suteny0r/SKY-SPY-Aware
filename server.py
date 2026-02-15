@@ -102,16 +102,32 @@ def get_drone_key(data):
 def update_drone(data):
     """Update the in-memory drone dict with a new detection."""
     key = get_drone_key(data)
+    mac = data.get('mac', '')
     now = time.time()
+    new_lat = data.get('drone_lat', 0.0)
+    new_lon = data.get('drone_long', 0.0)
     with drones_lock:
         if key not in drones:
-            drones[key] = {}
+            drones[key] = {'_mac_pos': {}}
         d = drones[key]
         d['key'] = key
-        d['mac'] = data.get('mac', '')
+        d['mac'] = mac
         d['rssi'] = data.get('rssi', 0)
-        d['drone_lat'] = data.get('drone_lat', 0.0)
-        d['drone_long'] = data.get('drone_long', 0.0)
+
+        # Only update position when this MAC reports a CHANGED position.
+        # The spoofer transmits on two MACs (AP beacon + NAN frames).
+        # The AP beacon vendor IE can carry stale/frozen position data
+        # while NAN frames carry the correct live position.  Without
+        # this check the stale AP beacon data (which fires ~10x more
+        # often) overwrites the fresh NAN position every cycle.
+        mac_pos = d.get('_mac_pos', {})
+        prev = mac_pos.get(mac)
+        if prev is None or prev[0] != new_lat or prev[1] != new_lon:
+            d['drone_lat'] = new_lat
+            d['drone_long'] = new_lon
+            mac_pos[mac] = (new_lat, new_lon)
+            d['_mac_pos'] = mac_pos
+
         d['drone_altitude'] = data.get('drone_altitude', 0)
         d['pilot_lat'] = data.get('pilot_lat', 0.0)
         d['pilot_long'] = data.get('pilot_long', 0.0)
