@@ -220,6 +220,8 @@ def build_aircraft_json():
 # ---------------------------------------------------------------------------
 # Serial reader thread
 # ---------------------------------------------------------------------------
+RECONNECT_INTERVAL = 3        # Seconds between reconnection attempts
+
 class SerialReader(threading.Thread):
     def __init__(self, port, baud=SERIAL_BAUD, log_dir=None):
         super().__init__(daemon=True)
@@ -227,19 +229,24 @@ class SerialReader(threading.Thread):
         self.baud = baud
         self.log_dir = log_dir
         self.ser = None
+        self.log_file = None
 
     def restart_device(self):
         """Toggle DTR to reset the ESP32 via auto-reset circuit."""
         if self.ser is None or not self.ser.is_open:
             return False
-        print("[SERIAL] Restarting sensor (DTR toggle)...")
-        self.ser.setDTR(False)
-        time.sleep(0.1)
-        self.ser.setDTR(True)
-        # Clear stale drone data so the map starts fresh
-        with drones_lock:
-            drones.clear()
-        return True
+        try:
+            print("[SERIAL] Restarting sensor (DTR toggle)...")
+            self.ser.setDTR(False)
+            time.sleep(0.1)
+            self.ser.setDTR(True)
+            # Clear stale drone data so the map starts fresh
+            with drones_lock:
+                drones.clear()
+            return True
+        except Exception as e:
+            print(f"[SERIAL] Restart failed: {e}")
+            return False
 
     def _open_log(self):
         """Create a timestamped log file for this session."""
@@ -251,23 +258,51 @@ class SerialReader(threading.Thread):
         print(f"[LOG] Recording serial data to {log_path}")
         return open(log_path, 'w', encoding='utf-8')
 
+    def _close_port(self):
+        """Safely close the serial port."""
+        if self.ser:
+            try:
+                self.ser.close()
+            except Exception:
+                pass
+            self.ser = None
+
+    def _connect(self):
+        """Open the serial port. Returns True on success."""
+        try:
+            self.ser = serial.Serial(self.port, self.baud, timeout=1)
+            print(f"[SERIAL] Connected to {self.port}")
+            return True
+        except serial.SerialException as e:
+            print(f"[SERIAL] Cannot open {self.port}: {e}")
+            self.ser = None
+            return False
+
     def run(self):
         if serial is None:
             print("[ERROR] pyserial not installed. Run: pip install pyserial")
             return
-        print(f"[SERIAL] Opening {self.port} at {self.baud} baud...")
-        try:
-            self.ser = serial.Serial(self.port, self.baud, timeout=1)
-        except serial.SerialException as e:
-            print(f"[ERROR] Cannot open {self.port}: {e}")
-            return
 
-        print(f"[SERIAL] Connected to {self.port}")
-        log_file = self._open_log()
-        try:
+        # Outer loop: handles reconnection after USB unplug/replug
+        while True:
+            # Connect (or reconnect)
+            print(f"[SERIAL] Opening {self.port} at {self.baud} baud...")
+            if not self._connect():
+                print(f"[SERIAL] Retrying in {RECONNECT_INTERVAL}s...")
+                time.sleep(RECONNECT_INTERVAL)
+                continue
+
+            # Start a new log file for each connection session
+            if self.log_file:
+                self.log_file.close()
+            self.log_file = self._open_log()
+
+            # Inner loop: reads lines until the port breaks
+            consecutive_errors = 0
             while True:
                 try:
                     line = self.ser.readline().decode('utf-8', errors='replace')
+                    consecutive_errors = 0
                     if not line:
                         continue
                     # Store in activity buffer
@@ -277,10 +312,10 @@ class SerialReader(threading.Thread):
                         with activity_lock:
                             activity_seq += 1
                             activity_lines.append((activity_seq, stripped))
-                    # Write every raw line to log (replayable as-is)
-                    if log_file:
-                        log_file.write(line)
-                        log_file.flush()
+                    # Write every raw line to log
+                    if self.log_file:
+                        self.log_file.write(line)
+                        self.log_file.flush()
                     data = parse_drone_json(line)
                     if data:
                         update_drone(data)
@@ -291,11 +326,15 @@ class SerialReader(threading.Thread):
                               f"alt={data.get('drone_altitude', 0)}m "
                               f"rssi={data.get('rssi', 0)}")
                 except Exception as e:
-                    print(f"[SERIAL] Error: {e}")
+                    consecutive_errors += 1
+                    if consecutive_errors >= 3:
+                        # Port is dead (USB unplugged) — close and reconnect
+                        print(f"[SERIAL] Port lost: {e}")
+                        print(f"[SERIAL] Waiting for device to reconnect...")
+                        self._close_port()
+                        time.sleep(RECONNECT_INTERVAL)
+                        break  # Back to outer reconnect loop
                     time.sleep(1)
-        finally:
-            if log_file:
-                log_file.close()
 
 
 # ---------------------------------------------------------------------------
