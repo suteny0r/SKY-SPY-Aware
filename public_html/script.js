@@ -487,12 +487,13 @@ function refreshTableInfo() {
 
         r.cells[0].textContent = plane.icao;
         r.cells[1].textContent = plane.flight || '';
-        r.cells[2].textContent = plane.altitude_m !== null ? plane.altitude_m + ' m' : '';
-        r.cells[3].textContent = plane.rssi !== null ? plane.rssi + ' dBm' : '';
-        r.cells[4].textContent = plane.seen !== null ? plane.seen.toFixed(0) + 's' : '';
-        r.cells[5].textContent = plane.position ? plane.position[1].toFixed(6) : '';
-        r.cells[6].textContent = plane.position ? plane.position[0].toFixed(6) : '';
-        r.cells[7].textContent = plane.droneType || '';
+        r.cells[2].textContent = plane.manufacturer || '';
+        r.cells[3].textContent = plane.altitude_m !== null ? plane.altitude_m + ' m' : '';
+        r.cells[4].textContent = plane.rssi !== null ? plane.rssi + ' dBm' : '';
+        r.cells[5].textContent = plane.seen !== null ? plane.seen.toFixed(0) + 's' : '';
+        r.cells[6].textContent = plane.position ? plane.position[1].toFixed(6) : '';
+        r.cells[7].textContent = plane.position ? plane.position[0].toFixed(6) : '';
+        r.cells[8].textContent = plane.droneType || '';
 
         r.className = 'plane_table_row';
         if (plane.icao === SelectedPlane) {
@@ -529,6 +530,7 @@ function refreshSelected() {
     $('#selected_icao').text(sel.icao);
     $('#selected_registration').text(sel.flight || 'n/a');
     $('#selected_mac').text(sel.mac || sel.icao);
+    $('#selected_manufacturer').text(sel.manufacturer || 'Unknown');
     $('#selected_source').text(sel.droneType === 'drone' ? 'Drone (Open Drone ID)' : sel.droneType === 'pilot' ? 'Pilot' : 'Unknown');
     $('#selected_rssi').text(sel.rssi !== null ? sel.rssi + ' dBm' : 'n/a');
     $('#selected_message_count').text(sel.messages || 0);
@@ -582,6 +584,7 @@ function refreshHighlighted() {
     $('#highlighted_callsign').text(h.flight || 'Unknown');
     $('#highlighted_icao').text(h.icao);
     $('#highlighted_registration').text(h.flight || 'n/a');
+    $('#highlighted_manufacturer').text(h.manufacturer || 'Unknown');
     $('#higlighted_icaotype').text(h.droneType || 'n/a');
 
     if (h.altitude_m !== null && h.altitude_m !== undefined) {
@@ -729,6 +732,7 @@ var sortAscending = true;
 
 function sortByICAO() { sortBy('icao'); }
 function sortByFlight() { sortBy('flight'); }
+function sortByManufacturer() { sortBy('manufacturer'); }
 function sortByAltitude() { sortBy('altitude'); }
 function sortByRssi() { sortBy('rssi'); }
 function sortBySeen() { sortBy('seen'); }

@@ -67,6 +67,10 @@
 						<div class="infoData infoRowContent"><span id="highlighted_registration">n/a</span></div>
 					</div>
 					<div class="infoRow">
+						<div class="infoHeading infoRowTitle">Manufacturer: </div>
+						<div class="infoData infoRowContent"><span id="highlighted_manufacturer">n/a</span></div>
+					</div>
+					<div class="infoRow">
 						<div class="infoHeading infoRowTitle">Type: </div>
 						<div class="infoData infoRowContent"><span id="higlighted_icaotype">n/a</span></div>
 					</div>
@@ -179,6 +183,7 @@
 										<tr>
 											<td id="icao" onclick="sortByICAO();">MAC</td>
 											<td id="flight" onclick="sortByFlight();">Remote ID</td>
+											<td id="manufacturer" onclick="sortByManufacturer();">Mfr</td>
 											<td id="altitude" onclick="sortByAltitude();">Alt (m)</td>
 											<td id="rssi" onclick="sortByRssi();">RSSI</td>
 											<td id="seen" onclick="sortBySeen();">Age</td>
@@ -191,6 +196,7 @@
 										<tr id="plane_row_template" class="plane_table_row hidden">
 											<td class="icaoCodeColumn">MAC</td>
 											<td>REMOTE_ID</td>
+											<td>MFR</td>
 											<td style="text-align: right">ALT</td>
 											<td style="text-align: right">RSSI</td>
 											<td style="text-align: right">SEEN</td>
@@ -225,6 +231,10 @@
 							<div class="infoRowLine">
 								<div class="infoHeading infoRowFluid fourColumnSection1">MAC:</div>
 								<div class="infoData infoRowFluid fourColumnSection2"><span id="selected_mac">n/a</span></div>
+							</div>
+							<div class="infoRowLine">
+								<div class="infoHeading infoRowFluid fourColumnSection1">Manufacturer:</div>
+								<div class="infoData infoRowFluid fourColumnSection2"><span id="selected_manufacturer">n/a</span></div>
 							</div>
 							<div class="infoRowLine">
 								<div class="infoHeading infoRowFluid fourColumnSection1">Type:</div>

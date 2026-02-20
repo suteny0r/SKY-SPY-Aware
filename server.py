@@ -31,6 +31,8 @@ try:
 except ImportError:
     serial = None
 
+from oui_database import oui_lookup
+
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
@@ -196,6 +198,7 @@ def build_aircraft_json():
                 'seen_pos': round(seen, 1),
                 'messages': d.get('detections', 1),
                 'mac': d.get('mac', ''),
+                'manufacturer': oui_lookup(d.get('mac', '')),
                 'altitude_m': drone_alt_m,
                 'pilot_lat': d.get('pilot_lat', 0.0),
                 'pilot_long': d.get('pilot_long', 0.0),

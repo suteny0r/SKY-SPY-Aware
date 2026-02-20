@@ -53,6 +53,7 @@ function PlaneObject(icao) {
     // Drone-specific fields
     this.droneType = null;    // 'drone' or 'pilot'
     this.mac = null;
+    this.manufacturer = null;
     this.basic_id = null;
     this.pilot_lat = null;
     this.pilot_lon = null;
@@ -110,6 +111,7 @@ PlaneObject.prototype.updateData = function(now, data) {
     // Drone-specific fields
     if ('type' in data) this.droneType = data.type;
     if ('mac' in data) this.mac = data.mac;
+    if ('manufacturer' in data) this.manufacturer = data.manufacturer;
     if ('altitude_m' in data) this.altitude_m = data.altitude_m;
     if ('pilot_lat' in data) this.pilot_lat = data.pilot_lat;
     if ('pilot_long' in data) this.pilot_lon = data.pilot_long;
